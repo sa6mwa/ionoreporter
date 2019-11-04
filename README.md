@@ -1,6 +1,6 @@
 # ionoreporter
 Ionoreporter is a small app that produce pdf files of a set of images,
-specifically ionograms. The app is written in [Go](https://golang.go) and
+specifically ionograms. The app is written in [Go](https://golang.org) and
 builds with GNU Make (using a Makefile). The Makefile can also be used to build
 a docker image to run ionoreporter as a container.
 
