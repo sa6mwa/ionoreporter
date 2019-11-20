@@ -55,7 +55,7 @@ var urls = []map[string]string{{
 
 
 /* version gets replaced build-time by go build -ldflags, see Makefile for more info */
-var version = "1.0"
+var version = "1.0.1"
 
 
 var outputs = map[string]string{}

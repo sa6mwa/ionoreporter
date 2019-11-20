@@ -1,10 +1,10 @@
 DXHOST = fqdn.to.dx.host
-VERSION = 1.0
+VERSION = 1.0.1
 GO = CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go
 
 .PHONY: all clean full-clean build dependencies docker docker-run docker-to-dxhost run
 
-all: clean build docker
+all: clean build
 
 clean:
 	rm -f ionoreporter
