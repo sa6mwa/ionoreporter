@@ -1,6 +1,10 @@
 # ionoreporter
 Ionoreporter is a small app that produce pdf files of a set of images,
-specifically ionograms. The app is written in [Go](https://golang.org) and
+specifically ionograms. Since version 2 it reads the data from Juliusruh's
+ionogram using `tesseract` OCR (via gosseract) and has the ability to push that
+information to a Slack app using a webhook (hooks.slack.com).
+
+The app is written in [Go](https://golang.org) and
 builds with GNU Make (using a Makefile). The Makefile can also be used to build
 a docker image to run ionoreporter as a container.
 
@@ -18,7 +22,7 @@ your `$GOPATH/bin`.
 
 ```bash
 # See Makefile for more info.
-# Default build env is amd64 linux.
+# Default build env is amd64 and whatever uname -s says.
 make all
 make run
 # If you have docker, you can build and run ionoreporter as a container:
@@ -30,8 +34,8 @@ make docker-run
 
 ```
 $ make docker-run
-docker run -u 1000:1000 -ti --rm -v /home/sa6mwa/ionoreporter/output:/destination -e OUTDIR=/destination ionoreporter:1.0
-INFO[2019-11-04T21:09:25Z] Starting ionoreporter 1.0, OUTDIR == /destination 
+docker run -u 1000:1000 -ti --rm -v /home/sa6mwa/ionoreporter/output:/destination -e IRPT_OUTDIR=/destination ionoreporter:1.0
+INFO[2019-11-04T21:09:25Z] Starting ionoreporter 1.0, IRPT_OUTDIR == /destination 
 INFO[2019-11-04T21:09:25Z] Downloading https://www.iap-kborn.de/fileadmin/user_upload/MAIN-abteilung/radar/Radars/Ionosonde/Plots/LATEST.PNG 
 INFO[2019-11-04T21:09:26Z] Downloading http://www.tgo.uit.no/ionosonde/latest.gif 
 INFO[2019-11-04T21:09:26Z] Downloading http://www2.irf.se/ionogram/dynasonde_kir/sao/latest.gif 
