@@ -38,7 +38,6 @@ $(BINDIR):
 $(OUTPUT): $(BINDIR)
 	#$(GO) build -v -o $(OUTPUT) -ldflags '-extldflags "-static -l jpeg" -X main.version=$(VERSION)' ./...
 	$(GO) build -v -o $(OUTPUT) -ldflags '-X main.version=$(VERSION)' ./...
-	ldd $(OUTPUT)
 go.mod:
 	go mod init $(MODULE)
 	go mod tidy
