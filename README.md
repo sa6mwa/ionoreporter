@@ -38,8 +38,8 @@ brew install tesseract
 ## Simple installation
 
 If you have `go` already installed, you can run `go get
-github.com/sa6mwa/ionoreporter` and you will have the `ionoreporter` binary in
-your `$GOPATH/bin`.
+github.com/sa6mwa/ionoreporter/cmd/ionoreporter` and you will have the
+`ionoreporter` binary in your `$GOPATH/bin`.
 
 ## Building and running
 
