@@ -1,16 +1,39 @@
 # ionoreporter
-Ionoreporter is a small app that produce pdf files of a set of images,
-specifically ionograms. Since version 2 it reads the data from Juliusruh's
-ionogram using `tesseract` OCR (via gosseract) and has the ability to push that
-information to a Slack app using a webhook (hooks.slack.com).
+
+Ionoreporter v3 is a small app that download ionograms (images) from public
+sources, interpret parameters written as text in the images (using OCR) and
+populates a database with those parameters.
+
+Parameters are foF2 (critical frequency of the ordinary wave reflected by the
+F2 layer), foE (E layer), fmin (minimum reflected frequency), hmF2 (calculated
+actual height of the F2 layer) and the optimal frequency range for NVIS
+regional shortwave (HF/MF) communication.
+
+These parameters are pushed as short daily text messages to a Discord or Slack
+integration webhook URL. Version 3.0.0 feature only daily reports of parameters
+from the previous 24 hours. Future versions will implement prediction and more
+frequent push messages of current conditions.
+
+Version 3 is a complete rewrite of previous versions and does not generate pdf
+files anymore, see previous releases for that functionality.
 
 The app is written in [Go](https://golang.org) and
 builds with GNU Make (using a Makefile). The Makefile can also be used to build
-a docker image to run ionoreporter as a container.
+a docker image to run or deploy `ionoreporter` as a container.
 
 ## Dependencies
 
-Golang 1.10 (probably works with earlier too), Docker and GNU Make.
+Golang 1.14 (probably works with earlier too), Docker, GNU Make,
+`tesseract-ocr` and `libtesseract-dev`. Install like this...
+
+```bash
+# Debian/Ubuntu
+apt-get install tesseract-ocr libtesseract-dev
+# Alpine
+apk add tesseract-ocr tesseract-ocr-dev
+# MacOS and Homebrew
+brew install tesseract
+```
 
 ## Simple installation
 
@@ -30,20 +53,46 @@ make docker
 make docker-run
 ```
 
-## Example
+## Building and deploying to a remote docker host
+
+The `Makefile` has some simple automation for transferring the docker container you build
+with `make docker` to a remote host called DXHOST using `ssh`. You need to specify the variables `SSHOPTS` and `DXHOST` to use these build steps, for example...
+
+```bash
+make docker
+make DXHOST="user@myremote.host.provider.com" SSHOPTS="" docker-to-dxhost
+# using a jumphost...
+make DXHOST="user@final.host.tld" SSHOPTS="-oProxyJump=jumphost" docker-to-dxhost
+# to start the image you probably also need to override DXUSER, DXGROUP,
+# VOLUME, DXENVFILE
+make DXHOST="remote.host.tld" SSHOPTS="" DXUSER=1003 DXGROUP=1003 VOLUME=/var/opt/storage DXENVFILE=/home/user/.ionoreporter.config docker-run-on-dxhost
+
+# there are also docker-deploy-to-dxhost and docker-redeploy-to-dxhost that
+# combine several steps: stopping, uploading, pruning containers & images and
+# starting the container (override the same variables above if necessary)...
+
+make DXHOST="remote.host.tld" SSHOPTS="" docker-deploy-to-dxhost
+make DXHOST="remote.host.tld" SSHOPTS="" docker-redeploy-to-dxhost
+```
+
+## Other examples
 
 ```
 $ make docker-run
-docker run -u 1000:1000 -ti --rm -v /home/sa6mwa/ionoreporter/output:/destination -e IRPT_OUTDIR=/destination ionoreporter:1.0
-INFO[2019-11-04T21:09:25Z] Starting ionoreporter 1.0, IRPT_OUTDIR == /destination 
-INFO[2019-11-04T21:09:25Z] Downloading https://www.iap-kborn.de/fileadmin/user_upload/MAIN-abteilung/radar/Radars/Ionosonde/Plots/LATEST.PNG 
-INFO[2019-11-04T21:09:26Z] Downloading http://www.tgo.uit.no/ionosonde/latest.gif 
-INFO[2019-11-04T21:09:26Z] Downloading http://www2.irf.se/ionogram/dynasonde_kir/sao/latest.gif 
-INFO[2019-11-04T21:09:26Z] Downloading http://www2.irf.se/ionogram/plots/ionoLy.gif 
-INFO[2019-11-04T21:09:27Z] kiruna ionogram saved as /tmp/ionoreporter-235787570.gif 
-INFO[2019-11-04T21:09:27Z] lycksele ionogram saved as /tmp/ionoreporter-415884521.gif 
-INFO[2019-11-04T21:09:27Z] juliusruh ionogram saved as /tmp/ionoreporter-626629632.png 
-INFO[2019-11-04T21:09:27Z] tromso ionogram saved as /tmp/ionoreporter-512875359.gif 
-INFO[2019-11-04T21:09:27Z] Saving /destination/ionoreport-20191104T210927.pdf 
-INFO[2019-11-04T21:09:27Z] Waiting 15m0s until next run                 
+docker run -u 501:20 -ti --rm \
+        -v /home/sa6mwa/ionoreporter/output:/destination \
+        -e DBFILE=/destination/ionize.db \
+        -e DISCORD=true -e DAILY=true -e FREQUENT=false \
+        --env-file ~/.ionoreporter.config \
+        ionoreporter:3.0.0
+{"level":"info","message":"Starting ionoreporter 3.0.0 with db /destination/ionize.db","timestamp":"2020-10-29T18:34:05Z"}
+{"level":"info","message":"Scheduling scrape function with cronspec */15 * * * *","timestamp":"2020-10-29T18:34:05Z"}
+{"level":"info","message":"Scheduling Slack and/or Discord daily reports with cronspec 0 5 * * *","timestamp":"2020-10-29T18:34:05Z"}
+{"level":"info","message":"ionoreporter started successfully","timestamp":"2020-10-29T18:34:05Z"}
 ```
+The file `~/.ionoreporter.config` need to define the `DAILY_DISCORDURL` environment variable...
+
+```
+DAILY_DISCORDURL=DAILY_DISCORDURL=https://discord.com/api/webhooks/key/key
+```
+
