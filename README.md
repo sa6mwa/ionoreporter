@@ -55,24 +55,26 @@ make docker-run
 
 ## Building and deploying to a remote docker host
 
-The `Makefile` has some simple automation for transferring the docker container you build
-with `make docker` to a remote host called DXHOST using `ssh`. You need to specify the variables `SSHOPTS` and `DXHOST` to use these build steps, for example...
+The `Makefile` has some simple automation for transferring the docker container
+you build with `make docker` to a remote host called DXHOST using `ssh`. You
+need to specify the variable `DXHOST` and possibly also `SSHOPTS` to use these
+build steps, for example...
 
 ```bash
 make docker
-make DXHOST="user@myremote.host.provider.com" SSHOPTS="" docker-to-dxhost
+make DXHOST="user@myremote.host.provider.com" docker-to-dxhost
 # using a jumphost...
 make DXHOST="user@final.host.tld" SSHOPTS="-oProxyJump=jumphost" docker-to-dxhost
 # to start the image you probably also need to override DXUSER, DXGROUP,
-# VOLUME, DXENVFILE
-make DXHOST="remote.host.tld" SSHOPTS="" DXUSER=1003 DXGROUP=1003 VOLUME=/var/opt/storage DXENVFILE=/home/user/.ionoreporter.config docker-run-on-dxhost
+# VOLUME and DXENVFILE
+make DXHOST="remote.host.tld" DXUSER=1003 DXGROUP=1003 VOLUME=/var/opt/storage DXENVFILE=/home/user/.ionoreporter.config docker-run-on-dxhost
 
 # there are also docker-deploy-to-dxhost and docker-redeploy-to-dxhost that
 # combine several steps: stopping, uploading, pruning containers & images and
 # starting the container (override the same variables above if necessary)...
 
-make DXHOST="remote.host.tld" SSHOPTS="" docker-deploy-to-dxhost
-make DXHOST="remote.host.tld" SSHOPTS="" docker-redeploy-to-dxhost
+make DXHOST="remote.host.tld" docker-deploy-to-dxhost
+make DXHOST="remote.host.tld" docker-redeploy-to-dxhost
 ```
 
 ## Other examples
@@ -93,6 +95,6 @@ docker run -u 501:20 -ti --rm \
 The file `~/.ionoreporter.config` need to define the `DAILY_DISCORDURL` environment variable...
 
 ```
-DAILY_DISCORDURL=DAILY_DISCORDURL=https://discord.com/api/webhooks/key/key
+DAILY_DISCORDURL=https://discord.com/api/webhooks/key/key
 ```
 

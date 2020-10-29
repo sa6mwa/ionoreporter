@@ -18,7 +18,8 @@ DXGROUP = 1001
 VOLUME = /storage/ionoreporter
 DXENVFILE = /root/.ionoreporter.config
 DXHOST = fqdn.to.dx.host
-SSHOPTS = -oProxyJump=jumphost
+SSHOPTS =
+#SSHOPTS = -oProxyJump=jumphost
 
 .PHONY: all tesseract clean full-clean build dependencies docker dockerold docker-run docker-to-dxhost docker-deploy-to-dxhost docker-redeploy-to-dxhost run
 
