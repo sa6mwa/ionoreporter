@@ -34,6 +34,17 @@ apk add tesseract-ocr tesseract-ocr-dev
 # MacOS and Homebrew
 brew install tesseract
 ```
+## Upgrading from version 3.0.0 to 3.1.0
+
+In the `upgrade` directory you find `upgrade-db-from-300-to-310.sql`. This is
+a non-idempotent SQL script to upgrade the SQLite3 database created with
+version 3.0.0 to support 3.1.0. You need to do this manually if you want to
+keep collected data from v3.0.0, for example:
+
+```bash
+cp ionoreporter.db ionoreporter-backup.db
+sqlite3 ionoreporter.db < upgrade/upgrade-db-from-300-to-310.sql
+```
 
 ## Simple installation
 

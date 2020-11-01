@@ -1,4 +1,4 @@
-FROM golang:1.14 as golangbuilder
+FROM golang:1.15 as golangbuilder
 ARG VERSION=3.0.0
 ENV VERSION=${VERSION}
 LABEL stage=intermediate

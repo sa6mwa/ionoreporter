@@ -25,6 +25,7 @@ import (
   "crypto/tls"
   "os"
   "fmt"
+  "sync"
   "image"
   _ "image/jpeg"
   "image/png"
@@ -42,17 +43,23 @@ import (
   "github.com/otiai10/gosseract"
   cron "github.com/robfig/cron/v3"
   "github.com/disintegration/gift"
+  "github.com/sixdouglas/suncalc"
 
   "github.com/sa6mwa/ionoreporter/ionizedb"
   "github.com/sa6mwa/ionoreporter/irmsg"
 )
 
 /* version gets replaced build-time by go build -ldflags, see Makefile for more info */
-var version = "3.0.0"
+var (
+  version = "3.1.0"
+  mu sync.Mutex
+)
 
 const (
   SqliteDateFormat string = "2006-01-02 15:04:05"
   DTGFormat string = "021504ZJan06"
+  HourMinute string = "1504"
+  Hour string = "15"
   FormatPng string = "png"
   FormatGif string = "gif"
 )
@@ -70,6 +77,7 @@ type Config struct {
   DailyReportCronSpec string `envconfig:"DAILY_CRONSPEC"`
   FrequentReportCronSpec string `envconfig:"FREQUENT_CRONSPEC"`
   ScrapeCronSpec string `envconfig:"SCRAPE_CRONSPEC"`
+  ScrapeTimeout time.Duration `envconfig:"SCRAPE_TIMEOUT"`
 }
 
 var cnf = &Config{
@@ -78,9 +86,10 @@ var cnf = &Config{
   Slack: false,     // do not push reports to slack webhookurl per default
   Daily: false,     // do not push daily reports to slack or discord per default
   Frequent: false,  // do not post frequent foF2, QSOQRG, etc reports to discord or slack per default
-  DailyReportCronSpec: "0 5 * * *",      // push 24h report at 0500 UTC
-  FrequentReportCronSpec: "0 */2 * * *", // push foF2, etc every 2nd hour
-  ScrapeCronSpec: "*/15 * * * *",       // scrape all ionograms every 15 minutes
+  DailyReportCronSpec: "0 5 * * *",       // push 24h report at 0500 UTC
+  FrequentReportCronSpec: "0 */2 * * *",  // push foF2, etc every 2nd hour
+  ScrapeCronSpec: "*/15 * * * *",         // scrape all ionograms every 15 minutes
+  ScrapeTimeout: 15 * time.Second,        // http.Client timeout
 }
 
 var db *sql.DB
@@ -98,6 +107,8 @@ type Ionosonde struct {
   IonosondeId string
   UrsiCode string
   Name string
+  Latitude sql.NullFloat64
+  Longitude sql.NullFloat64
   ImageUrl string
   Filter sql.NullString
   DateFormat string
@@ -214,7 +225,7 @@ func downloadFile(url string, tag string) (string, error) {
   }
   client := &http.Client{
     Transport: tr,
-    Timeout: 10 * time.Second,
+    Timeout: cnf.ScrapeTimeout,
   }
   resp, err := client.Get(url)
   if err != nil {
@@ -361,8 +372,9 @@ func applyFilter(src image.Image, filter, ursiCode string) (image.Image) {
  */
 func getIonosondesFromDb(sqlsuffix string) ([]Ionosonde, error) {
   var ionosondes []Ionosonde
-  rows, err := db.Query("select ionosondeId, ursiCode, name, imageUrl, filter, " +
-                        "dateFormat, dateCrop, fof2Crop, fof1Crop, foeCrop, fxiCrop, " +
+  rows, err := db.Query("select ionosondeId, ursiCode, name, latitude, longitude, " +
+                        "imageUrl, filter, dateFormat, " +
+                        "dateCrop, fof2Crop, fof1Crop, foeCrop, fxiCrop, " +
                         "foesCrop, fminCrop, hmf2Crop, hmeCrop " +
                         "from ionosondes " + sqlsuffix)
   if err != nil {
@@ -374,9 +386,10 @@ func getIonosondesFromDb(sqlsuffix string) ([]Ionosonde, error) {
   // two different tables so we read all ionosonde properties into memory instead...
   for rows.Next() {
     ti := Ionosonde{}
-    err = rows.Scan(&ti.IonosondeId, &ti.UrsiCode, &ti.Name, &ti.ImageUrl, &ti.Filter,
-                    &ti.DateFormat, &ti.DateCrop, &ti.Fof2Crop, &ti.Fof1Crop, &ti.FoeCrop,
-                    &ti.FxiCrop, &ti.FoesCrop, &ti.FminCrop, &ti.Hmf2Crop, &ti.HmeCrop)
+    err = rows.Scan(&ti.IonosondeId, &ti.UrsiCode, &ti.Name, &ti.Latitude, &ti.Longitude,
+                    &ti.ImageUrl, &ti.Filter, &ti.DateFormat,
+                    &ti.DateCrop, &ti.Fof2Crop, &ti.Fof1Crop, &ti.FoeCrop, &ti.FxiCrop,
+                    &ti.FoesCrop, &ti.FminCrop, &ti.Hmf2Crop, &ti.HmeCrop)
     if err != nil {
       log.Errorf("rows.Scan error: %v", err)
       return ionosondes, err
@@ -391,6 +404,37 @@ func getIonosondesFromDb(sqlsuffix string) ([]Ionosonde, error) {
   return ionosondes, nil
 }
 
+
+/* fixDate(string) is used by ionize() to replace common misinterpretations of the date string by tesseract
+ */
+func fixDate(dt string) (string) {
+  replaceslice := [][2]string{
+    { "NovO01l ", "Nov01 " },
+    { "NovO0l1 ", "Nov01 " },
+    { "HovO1l ", "Nov01 " },
+    { "HovO1 ", "Nov01 " },
+    { "NovO1l ", "Nov01 " },
+    { "NovO01 ", "Nov01 " },
+    { "Nov@l ", "Nov01 " },
+    { "NovOl ", "Nov01 " },
+    { "Hov01", "Nov01" },
+    { "oOct31", "Oct31" },
+    { "O1 ", "01 " },
+    { "O2 ", "02 " },
+    { "O3 ", "03 " },
+    { "O4 ", "04 " },
+    { "O5 ", "05 " },
+    { "O6 ", "06 " },
+    { "O7 ", "07 " },
+    { "O8 ", "08 " },
+    { "O9 ", "09 " },
+  }
+  for _, v := range replaceslice {
+    dt = strings.Replace(dt, v[0], v[1], 1)
+  }
+  return dt
+}
+
 /* ionize() runs through ionosondes in db, downloads ionograms and populates
  * the parameters table in the database.
  */
@@ -401,6 +445,9 @@ func ionize() (error) {
   r := rand.Intn(30)
   log.Infof("Scraping ionograms in %s", time.Duration(r) * time.Second)
   time.Sleep(time.Duration(r) * time.Second)
+
+  mu.Lock()
+  defer mu.Unlock()
 
   ionosondes, err := getIonosondesFromDb("where scrape=1")
   if err != nil {
@@ -413,6 +460,8 @@ func ionize() (error) {
       p := Parameters{}
       skipmsg := fmt.Sprintf("Skipping scrape of ionosonde %s (%s)", i.UrsiCode, i.Name)
       p.IonosondeId = i.IonosondeId
+
+      log.Infof("Scraping %s (%s)", i.UrsiCode, i.Name)
 
       // download ionogram
       urls := strings.Split(i.ImageUrl, `,`)
@@ -427,7 +476,7 @@ func ionize() (error) {
         }
       }
       if err != nil {
-        log.Errorf("Error downloading any of %v: %v", urls, err)
+        log.Errorf("Error downloading %v: %v", urls, err)
         log.Warning(skipmsg)
         return
       }
@@ -469,15 +518,21 @@ func ionize() (error) {
 
       // getTextFromCut
       // first get date
-      dt, err := getTextFromCut(img, i.DateCrop)
+      ocrdt, err := getTextFromCut(img, i.DateCrop)
       if err != nil {
         log.Errorf("Cannot read date from ionogram %s: %v", imgFile, err)
         log.Warning(skipmsg)
         return
       }
+      // fix common misinterpretations of the date string
+      dt := fixDate(ocrdt)
+      if dt != ocrdt {
+        log.Infof("fixDate() changed string '%s' to '%s'", ocrdt, dt)
+      }
+      // parse fixed date into time.Time
       p.Date, err = time.Parse(i.DateFormat, dt)
       if err != nil {
-        log.Errorf("Cannot parse date %s (according to format %s) from ionogram %s: %v", dt, i.DateFormat, imgFile, err)
+        log.Errorf("Cannot parse '%s' (according to format %s) from %s: %v", dt, i.DateFormat, imgFile, err)
         log.Warning(skipmsg)
         return
       }
@@ -568,6 +623,10 @@ func ionize() (error) {
  */
 func makeDailyReports() ([]string, error) {
   type reportStruct struct {
+    sunrise time.Time
+    sunset time.Time
+    solarNoon time.Time
+    tag string
     fof2 string
     nvisRange string
     foe string
@@ -575,22 +634,42 @@ func makeDailyReports() ([]string, error) {
     hmf2 string
     hme string
     hamBands string
-    lowForHamBands float64
     low float64
     qsoqrg float64
   }
-  const notAvailable string = `NA`
+  const (
+    notAvailable string = `NA`
+    reportHeader string = "HH fmin  foF2  NVIS range  hmF2 HamBands\n"
+    reportRow string = "%s%s%s %s %s %s %s\n"
+  )
   var out []string
   log.Info("Producing 24h reports")
   ionosondes, err := getIonosondesFromDb("where enabled=1")
   if err != nil {
     return out, err
   }
+  mu.Lock()
+  defer mu.Unlock()
   for _, i := range ionosondes {
     func() {
-      r := fmt.Sprintf("24H report for %s (%s) DTG %s\n",
+      sunriseHour := ""
+      noonHour := ""
+      sunsetHour := ""
+      r := fmt.Sprintf("24H %s (%s) DTG %s\n",
                       i.UrsiCode, i.Name, time.Now().UTC().Format(DTGFormat))
-      r += "Last row is latest, hour closest from now.\n"
+      if i.Latitude.Valid && i.Longitude.Valid {
+        now := time.Now()
+        times := suncalc.GetTimes(now, i.Latitude.Float64, i.Longitude.Float64)
+        sunrise := times[suncalc.Sunrise].Time.UTC().Format(HourMinute)
+        sunriseHour = times[suncalc.Sunrise].Time.UTC().Format(Hour)
+        noon := times[suncalc.SolarNoon].Time.UTC().Format(HourMinute)
+        noonHour = times[suncalc.SolarNoon].Time.UTC().Format(Hour)
+        sunset := times[suncalc.Sunset].Time.UTC().Format(HourMinute)
+        sunsetHour = times[suncalc.Sunset].Time.UTC().Format(Hour)
+        r += fmt.Sprintf("+=sunrise=%s *=noon=%s -=sunset=%s\n", sunrise, noon, sunset)
+      } else {
+        r += "WARNING: No coordinates available!\n"
+      }
       r += "NVIS range is fmin or foE to foF2*0.85\n"
       rows, err := db.Query(
         "select strftime('%H', dt), avg(fof2), avg(fof2)*0.85, avg(foe), avg(fmin), " +
@@ -603,8 +682,7 @@ func makeDailyReports() ([]string, error) {
       }
       defer rows.Close()
       // add header
-      //r += "DDHH  FoF2   NVIS range   FoE    Fmin   HmF2 HmE  HamBands\n"
-      r += "HH fmin  foF2  NVIS range  hmF2 HamBands\n"
+      r += reportHeader
       for rows.Next() {
         frp := DailyReportParams{}
         err = rows.Scan(&frp.Hour, &frp.FoF2, &frp.QSOQRG, &frp.FoE, &frp.Fmin,
@@ -616,6 +694,22 @@ func makeDailyReports() ([]string, error) {
 
         // format the values as strings before parsing them into the report
         rs := reportStruct{}
+
+        // populate rs struct, first figure out if hour is sunrise, sunset or solar noon...
+        rs.tag = " "
+        if frp.Hour == sunriseHour {
+          rs.tag = "+"
+        }
+        if frp.Hour == sunsetHour {
+          rs.tag = "-"
+        }
+        if frp.Hour == sunriseHour && frp.Hour == sunsetHour {
+          rs.tag = "±"
+        }
+        // solar noon has precedence
+        if frp.Hour == noonHour {
+          rs.tag = "*"
+        }
         rs.fmin = fmt.Sprintf("%-5s", notAvailable)
         rs.fof2 = fmt.Sprintf("%-5s", notAvailable)
         rs.nvisRange = fmt.Sprintf("%-11s", notAvailable)
@@ -682,9 +776,8 @@ func makeDailyReports() ([]string, error) {
           }
         }
         // output formatted row with parameters...
-        //r += fmt.Sprintf("%s %s %s %s %s %s %s %s\n", frp.Hour, rs.fof2,
-        //          rs.nvisRange, rs.foe, rs.fmin, rs.hmf2, rs.hme, rs.hamBands)
-        r += fmt.Sprintf("%s %s %s %s %s %s\n", frp.Hour, rs.fmin,
+        // reportRow has 7 fields
+        r += fmt.Sprintf(reportRow, frp.Hour, rs.tag, rs.fmin,
                   rs.fof2, rs.nvisRange, rs.hmf2, rs.hamBands)
       }
       // here we have a complete report (in the r var) for this ionosonde
@@ -703,7 +796,9 @@ func pushDailyReports() (error) {
     log.Warningf("Option DAILY is false, will not push daily reports!")
     return nil
   }
+
   reports, err := makeDailyReports()
+
   if err != nil {
     log.Errorf("Unable to makeDailyReports(): %v", err)
     return err
@@ -923,5 +1018,5 @@ func main() {
 */
 
   log.Infof("ionoreporter started successfully")
-  select{ }
+  select{}
 }

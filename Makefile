@@ -1,5 +1,5 @@
 NAME = ionoreporter
-VERSION = 3.0.0
+VERSION = 3.1.0
 GOOS = $(shell uname -s | tr '[:upper:]' '[:lower:]')
 GOARCH = amd64
 GO = GOOS=$(GOOS) GOARCH=$(GOARCH) go
