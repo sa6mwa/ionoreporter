@@ -39,7 +39,7 @@ func PostJson(webhookUrl string, jsonBytes []byte, okresponse string) error {
     }
   } else {
     if resp.StatusCode < 200 || resp.StatusCode > 299 {
-      return fmt.Errorf("Got return code %i", resp.StatusCode)
+      return fmt.Errorf("Got return code %d", resp.StatusCode)
     }
   }
   return nil

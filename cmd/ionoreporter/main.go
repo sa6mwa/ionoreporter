@@ -14,6 +14,12 @@
  * limitations under the License.
  */
 
+/*
+TODO:
+https://tutorialedge.net/golang/writing-a-twitter-bot-golang/
+*/
+
+
 package main
 import (
   "io"
@@ -51,7 +57,7 @@ import (
 
 /* version gets replaced build-time by go build -ldflags, see Makefile for more info */
 var (
-  version = "3.1.0"
+  version = "3.1.1"
   mu sync.Mutex
 )
 
@@ -409,16 +415,18 @@ func getIonosondesFromDb(sqlsuffix string) ([]Ionosonde, error) {
  */
 func fixDate(dt string) (string) {
   replaceslice := [][2]string{
+    { "oOct", "Oct" },
+    { "Hov", "Nov" },
     { "NovO01l ", "Nov01 " },
     { "NovO0l1 ", "Nov01 " },
-    { "HovO1l ", "Nov01 " },
-    { "HovO1 ", "Nov01 " },
     { "NovO1l ", "Nov01 " },
     { "NovO01 ", "Nov01 " },
+    { "NovO1 ", "Nov01 " },
     { "Nov@l ", "Nov01 " },
     { "NovOl ", "Nov01 " },
-    { "Hov01", "Nov01" },
-    { "oOct31", "Oct31" },
+    { "NovO0", "Nov0" },
+    { "Nov@", "Nov0" },
+    { "NovO", "Nov0" },
     { "O1 ", "01 " },
     { "O2 ", "02 " },
     { "O3 ", "03 " },
@@ -527,7 +535,7 @@ func ionize() (error) {
       // fix common misinterpretations of the date string
       dt := fixDate(ocrdt)
       if dt != ocrdt {
-        log.Infof("fixDate() changed string '%s' to '%s'", ocrdt, dt)
+        log.Infof("fixDate() changed '%s' to '%s'", ocrdt, dt)
       }
       // parse fixed date into time.Time
       p.Date, err = time.Parse(i.DateFormat, dt)
@@ -663,7 +671,7 @@ func makeDailyReports() ([]string, error) {
         sunrise := times[suncalc.Sunrise].Time.UTC().Format(HourMinute)
         sunriseHour = times[suncalc.Sunrise].Time.UTC().Format(Hour)
         noon := times[suncalc.SolarNoon].Time.UTC().Format(HourMinute)
-        noonHour = times[suncalc.SolarNoon].Time.UTC().Format(Hour)
+        noonHour = times[suncalc.SolarNoon].Time.Add(30 * time.Minute).UTC().Format(Hour)
         sunset := times[suncalc.Sunset].Time.UTC().Format(HourMinute)
         sunsetHour = times[suncalc.Sunset].Time.UTC().Format(Hour)
         r += fmt.Sprintf("+=sunrise=%s *=noon=%s -=sunset=%s\n", sunrise, noon, sunset)
