@@ -57,7 +57,7 @@ import (
 
 /* version gets replaced build-time by go build -ldflags, see Makefile for more info */
 var (
-  version = "3.1.1"
+  version = "3.1.2"
   mu sync.Mutex
 )
 
@@ -669,10 +669,13 @@ func makeDailyReports() ([]string, error) {
         now := time.Now()
         times := suncalc.GetTimes(now, i.Latitude.Float64, i.Longitude.Float64)
         sunrise := times[suncalc.Sunrise].Time.UTC().Format(HourMinute)
-        sunriseHour = times[suncalc.Sunrise].Time.UTC().Format(Hour)
+        // add 15 minutes in case e.g 1045, hour would be 11 instead of 10, better
+        sunriseHour = times[suncalc.Sunrise].Time.Add(15 * time.Minute).UTC().Format(Hour)
         noon := times[suncalc.SolarNoon].Time.UTC().Format(HourMinute)
+        // add 30 min to solar noon to average it better (1030 would be 11, 1025 would be 10, etc)
         noonHour = times[suncalc.SolarNoon].Time.Add(30 * time.Minute).UTC().Format(Hour)
         sunset := times[suncalc.Sunset].Time.UTC().Format(HourMinute)
+        // if sunset is 1055, it's better that sunset hour is 10 not to miss the sunset :), 1015 would still be hour 10, etc
         sunsetHour = times[suncalc.Sunset].Time.UTC().Format(Hour)
         r += fmt.Sprintf("+=sunrise=%s *=noon=%s -=sunset=%s\n", sunrise, noon, sunset)
       } else {
