@@ -57,7 +57,7 @@ import (
 
 /* version gets replaced build-time by go build -ldflags, see Makefile for more info */
 var (
-  version = "3.1.2"
+  version = "3.1.3"
   mu sync.Mutex
 )
 
@@ -427,6 +427,16 @@ func fixDate(dt string) (string) {
     { "NovO0", "Nov0" },
     { "Nov@", "Nov0" },
     { "NovO", "Nov0" },
+    { "Novl", "Nov1" },
+    { "Decl", "Dec1" },
+    { "Janl", "Jan1" },
+    { "Febl", "Feb1" },
+    { "Marl", "Mar1" },
+    { "Aprl", "Apr1" },
+    { "Junl", "Jun1" },
+    { "Jull", "Jul1" },
+    { "Augl", "Aug1" },
+    { "Octl", "Oct1" },
     { "O1 ", "01 " },
     { "O2 ", "02 " },
     { "O3 ", "03 " },

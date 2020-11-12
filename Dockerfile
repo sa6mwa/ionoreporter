@@ -1,5 +1,5 @@
 FROM golang:1.15 as golangbuilder
-ARG VERSION=3.0.0
+ARG VERSION=3.1.3
 ENV VERSION=${VERSION}
 LABEL stage=intermediate
 WORKDIR /ionoreporter
