@@ -57,7 +57,7 @@ import (
 
 /* version gets replaced build-time by go build -ldflags, see Makefile for more info */
 var (
-  version = "3.1.4"
+  version = "3.1.5"
   mu sync.Mutex
 )
 
@@ -417,6 +417,9 @@ func fixDate(dt string) (string) {
   replaceslice := [][2]string{
     { "oOct", "Oct" },
     { "Hov", "Nov" },
+    { "Novl19 ", "Nov19 " },
+    { "Nov1?7 ", "Nov17 " },
+    { "Nov1? ", "Nov17 " },
     { "Nov1l5", "Nov15" },
     { "Nov1?2", "Nov12" },
     { "Novl16", "Nov16" },
