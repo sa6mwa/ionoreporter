@@ -57,7 +57,7 @@ import (
 
 /* version gets replaced build-time by go build -ldflags, see Makefile for more info */
 var (
-  version = "3.1.5"
+  version = "3.1.6"
   mu sync.Mutex
 )
 
@@ -417,6 +417,40 @@ func fixDate(dt string) (string) {
   replaceslice := [][2]string{
     { "oOct", "Oct" },
     { "Hov", "Nov" },
+    { "DecO01 ", "Dec01 "},
+    { "DecO@1 ", "Dec01 "},
+    { "DecO1l ", "Dec01 "},
+    { "DecOl ", "Dec01 "},
+    { "DecO?2 ", "Dec02 " },
+    { "DecO@2 ", "Dec02 " },
+    { "DecO? ", "Dec07 " },
+    { "Dec1? ", "Dec12 " },
+    { "Decl10 ", "Dec10 " },
+    { "Decl11 ", "Dec11 " },
+    { "Decl12 ", "Dec12 " },
+    { "Decl13 ", "Dec13 " },
+    { "Decl14 ", "Dec14 " },
+    { "Decl15 ", "Dec15 " },
+    { "Decl16 ", "Dec16 " },
+    { "Decl17 ", "Dec17 " },
+    { "Decl18 ", "Dec18 " },
+    { "Decl19 ", "Dec19 " },
+    { "DeclO ", "Dec10 " },
+    { "Decll ", "Dec11 " },
+    { "110 ", "10 " },
+    { "1O@ ", "10 " },
+    { "10O ", "10 " },
+    { "1O ", "10 " },
+    { "001 ", "01 " },
+    { "002 ", "02 " },
+    { "003 ", "03 " },
+    { "004 ", "04 " },
+    { "005 ", "05 " },
+    { "006 ", "06 " },
+    { "007 ", "07 " },
+    { "008 ", "08 " },
+    { "009 ", "09 " },
+    { "Dec@", "Dec0" },
     { "Novl19 ", "Nov19 " },
     { "Nov1?7 ", "Nov17 " },
     { "Nov1? ", "Nov17 " },
