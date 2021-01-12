@@ -20,6 +20,20 @@ create table parameters (
   hmf2 float null
 );
 
+create table predictions (
+  predictionId integer primary key not null,
+  ionosondeId integer not null,
+  dt datetime not null,
+  fof2 float null,
+  fof1 float null,
+  foe float null,
+  fxi float null,
+  foes float null,
+  fmin float null,
+  hme float null,
+  hmf2 float null
+);
+
 create table ionosondes (
   ionosondeId integer primary key autoincrement,
   ursiCode varchar(16) not null,

@@ -57,7 +57,7 @@ import (
 
 /* version gets replaced build-time by go build -ldflags, see Makefile for more info */
 var (
-  version = "3.1.6"
+  version = "3.2.0"
   mu sync.Mutex
 )
 
@@ -84,6 +84,9 @@ type Config struct {
   FrequentReportCronSpec string `envconfig:"FREQUENT_CRONSPEC"`
   ScrapeCronSpec string `envconfig:"SCRAPE_CRONSPEC"`
   ScrapeTimeout time.Duration `envconfig:"SCRAPE_TIMEOUT"`
+  Predict bool `envconfig:"PREDICT"`
+  PredictDays int `ennconfig:"PREDICT_DAYS"`
+  PredictBasedOnDays int `envconfig:"PREDICT_BASED_ON_DAYS"`
 }
 
 var cnf = &Config{
@@ -96,6 +99,9 @@ var cnf = &Config{
   FrequentReportCronSpec: "0 */2 * * *",  // push foF2, etc every 2nd hour
   ScrapeCronSpec: "*/15 * * * *",         // scrape all ionograms every 15 minutes
   ScrapeTimeout: 15 * time.Second,        // http.Client timeout
+  Predict: true,          // populate predictions table by default
+  PredictDays: 3,         // do forecast for this many days (since it uses hourly averages)
+  PredictBasedOnDays: 3,  // base prediction on this many previous values (resulting in number of days)
 }
 
 var db *sql.DB
@@ -417,6 +423,8 @@ func fixDate(dt string) (string) {
   replaceslice := [][2]string{
     { "oOct", "Oct" },
     { "Hov", "Nov" },
+    { " 612 ", " 012 " },
+    { " 610 ", " 010 " },
     { "DecO01 ", "Dec01 "},
     { "DecO@1 ", "Dec01 "},
     { "DecO1l ", "Dec01 "},
@@ -425,6 +433,22 @@ func fixDate(dt string) (string) {
     { "DecO@2 ", "Dec02 " },
     { "DecO? ", "Dec07 " },
     { "Dec1? ", "Dec12 " },
+    { "Decl? ", "Dec18 " },
+    { "JanlO ", "Jan10 " },
+    { "JanlO0 ", "Jan10 " },
+    { "Jan1O0 ", "Jan10 " },
+    { "Jani0 ", "Jan10 " },
+    { "Jan110 ", "Jan10 " },
+    { "Jani0 ", "Jan10 " },
+    { "Jan1O ", "Jan10 " },
+    { "Jan1l ", "Jan11 " },
+    { "Janii1 ", "Jan11 " },
+    { "Janil ", "Jan11 " },
+    { "Jani? ", "Jan12 " },
+    { "Janl? ", "Jan12 " },
+    { "Jan0O", "Jan0" },
+    { "JanO0", "Jan0" },
+    { "JanO", "Jan0" },
     { "Decl10 ", "Dec10 " },
     { "Decl11 ", "Dec11 " },
     { "Decl12 ", "Dec12 " },
@@ -441,15 +465,19 @@ func fixDate(dt string) (string) {
     { "1O@ ", "10 " },
     { "10O ", "10 " },
     { "1O ", "10 " },
-    { "001 ", "01 " },
-    { "002 ", "02 " },
-    { "003 ", "03 " },
-    { "004 ", "04 " },
-    { "005 ", "05 " },
-    { "006 ", "06 " },
-    { "007 ", "07 " },
-    { "008 ", "08 " },
-    { "009 ", "09 " },
+    { " O0", " 00" },
+    { "Jan00", "Jan0" },
+    { "Feb00", "Feb0" },
+    { "Mar00", "Mar0" },
+    { "Apr00", "Apr0" },
+    { "May00", "May0" },
+    { "Jun00", "Jun0" },
+    { "Jul00", "Jul0" },
+    { "Aug00", "Aug0" },
+    { "Sep00", "Sep0" },
+    { "Oct00", "Oct0" },
+    { "Nov00", "Nov0" },
+    { "Dec00", "Dec0" },
     { "Dec@", "Dec0" },
     { "Novl19 ", "Nov19 " },
     { "Nov1?7 ", "Nov17 " },
@@ -681,7 +709,12 @@ func ionize() (error) {
 
 
 
+/* predict() takes the
 
+func predict() (error) {
+
+
+}
 
 /* makeDailyReports() is used by pushDailyReports() to make a text table of foF2
  * and other parameters with hourly averages over the last 24 hours.
